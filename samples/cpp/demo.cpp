@@ -13,16 +13,26 @@
  * limitations under the License.
  */
 
+#include <cassert>
 #include <iostream>
 #include <myanmartools.h>
+
+#define U_SHOW_CPLUSPLUS_API 0
+#define U_DEFAULT_SHOW_DRAFT 0
+#define U_HIDE_DEPRECATED_API 1
+#define U_HIDE_OBSOLETE_API 1
+#define U_HIDE_INTERNAL_API 1
+
 #include <unicode/utrans.h>
 #include <unicode/ustring.h>
 #include <unicode/errorcode.h>
 #include <unicode/translit.h>
 #include <unicode/unistr.h>
 #include <unicode/ustream.h>
-#include <cassert>
-//#include <glog/logging.h>
+
+// This is a unique pointer with a custom deleter method for cleaning up ICU opaque objects on scope exit.
+template<typename T>
+using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
 int main() {
     // Unicode string:
@@ -37,42 +47,45 @@ int main() {
 
     assert(score1 < 0.001);
     assert(score2 > 0.999);
-    //CHECK_LT(score1, 0.001);
-    //CHECK_GT(score2, 0.999);
+    
     std::cout.precision(6);
     std::cout.setf(std::ios::fixed, std::ios::floatfield);
     std::cout << "Unicode Score: " << score1 << std::endl;
     std::cout << "Zawgyi Score: " << score2 << std::endl;
 
+    // Note: We are only using the ICU C APIs below.
+
+    // Create a ICU Transliterator object for converting from Zawygi to Unicode.
     UErrorCode status = U_ZERO_ERROR;
-    const char16_t* id = u"Zawgyi-my";
-    auto converter2 = utrans_openU(u"Zawgyi-my", -1, UTRANS_FORWARD, nullptr, -1, nullptr, &status);
+    deleted_unique_ptr<UTransliterator> converter(
+        utrans_openU(u"Zawgyi-my", -1, UTRANS_FORWARD, nullptr, -1, nullptr, &status),
+        [](UTransliterator* c) { utrans_close(c); }
+    );
+
     if (U_FAILURE(status)) {
-        std::cout << "Failure: " << u_errorName(status);
+        std::cout << "Failed to create the Transliterator. " << u_errorName(status);
         return -1;
     }
 
-    const char16_t* inputZawgyi = u"အျပည္ျပည္ဆိုင္ရာ လူ႔အခြင့္အေရး ေၾကညာစာတမ္း";
+    // Copy the Zawgyi string to a mutable buffer for conversion.
     char16_t buf[256] = {0};
-    
-    u_strcpy(buf, inputZawgyi);
-    int32_t length = -1;
-    int32_t limit = u_strlen(inputZawgyi);
+    u_strcpy(buf, input2);
+    int32_t convertedLength = -1;
+    int32_t limit = u_strlen(input2);
 
-    utrans_transUChars(converter2, buf, &length, 256, 0, &limit, &status);
+    // Use the ICU Transliterator to convert from Zawgyi to Unicode.
+    utrans_transUChars(converter.get(), buf, &convertedLength, 256, 0, &limit, &status);
 
     if (U_FAILURE(status)) {
         std::cout << "Failure: " << u_errorName(status);
         return -1;
     }
-
-    utrans_close(converter2);
     
+    // Verify that the converted output string matches the Unicode string.
     icu::UnicodeString output(buf);
     if (icu::UnicodeString(input1) != output) {
-        std::cout << "Failed!!!" << std::endl;
+        std::cout << "Failed, the strings don't match!" << std::endl;
     } else {
-        std::cout << "Converted Text: " << output << std::endl;
+        std::cout << "Success! Converted Text: " << output << std::endl;
     }
-
 }
