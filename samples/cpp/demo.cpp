@@ -11,11 +11,6 @@
 // Include ICU headers
 // Note: On Windows 10 version 1709 (RS3) and above you can use the following
 //  #include <icu.h>
-#define U_SHOW_CPLUSPLUS_API 0
-#define U_DEFAULT_SHOW_DRAFT 0
-#define U_HIDE_DEPRECATED_API 1
-#define U_HIDE_OBSOLETE_API 1
-#define U_HIDE_INTERNAL_API 1
 #include <unicode/utrans.h>
 #include <unicode/ustring.h>
 #include <unicode/errorcode.h>
@@ -28,9 +23,11 @@ template<typename T>
 using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
 int main() {
-    // Unicode string:
+    // Detection ----------------------------------------------------
+
+    // Unicode string (as UTF-8):
     const char* input1 = u8"အပြည်ပြည်ဆိုင်ရာ လူ့အခွင့်အရေး ကြေညာစာတမ်း";
-    // Zawgyi string:
+    // Zawgyi string (as UTF-8):
     const char* input2 = u8"အျပည္ျပည္ဆိုင္ရာ လူ႔အခြင့္အေရး ေၾကညာစာတမ္း";
 
     // Detect that the second string is Zawgyi:
@@ -45,6 +42,15 @@ int main() {
     std::cout.setf(std::ios::fixed, std::ios::floatfield);
     std::cout << "Unicode Score: " << score1 << std::endl;
     std::cout << "Zawgyi Score: " << score2 << std::endl;
+
+    // Conversion ---------------------------------------------------
+
+    // Note: We are only using the ICU C APIs below.
+
+    // Unicode string (as UTF-16):
+    const char16_t* unicode_16 = u"အပြည်ပြည်ဆိုင်ရာ လူ့အခွင့်အရေး ကြေညာစာတမ်း";
+    // Zawgyi string (as UTF-16):
+    const char16_t* zawgyi_16 = u"အျပည္ျပည္ဆိုင္ရာ လူ႔အခြင့္အေရး ေၾကညာစာတမ္း";
 
     // Note: We are only using the ICU C APIs below.
 
@@ -61,10 +67,10 @@ int main() {
     }
 
     // Copy the Zawgyi string to a mutable buffer for conversion.
-    char16_t buf[256] = {0};
-    u_strcpy(buf, input2);
+    char16_t buf[256] = { 0 };
+    u_strcpy(buf, zawgyi_16);
     int32_t convertedLength = -1;
-    int32_t limit = u_strlen(input2);
+    int32_t limit = u_strlen(zawgyi_16);
 
     // Use the ICU Transliterator to convert from Zawgyi to Unicode.
     utrans_transUChars(converter.get(), buf, &convertedLength, 256, 0, &limit, &status);
@@ -73,12 +79,12 @@ int main() {
         std::cout << "Failure: " << u_errorName(status);
         return -1;
     }
-    
+
     // Verify that the converted output string matches the Unicode string.
-    icu::UnicodeString output(buf);
-    if (icu::UnicodeString(input1) != output) {
+    if (u_strcmp(unicode_16, buf) != 0) {
         std::cout << "Failed, the strings don't match!" << std::endl;
-    } else {
-        std::cout << "Success! Converted Text: " << output << std::endl;
+    }
+    else {
+        std::cout << "Success!" << std::endl;
     }
 }
