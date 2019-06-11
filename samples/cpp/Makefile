@@ -20,7 +20,7 @@
 
 
 CXX=g++
-LIBS=-lmyanmartoolsd -licuuc -licuio -licui18n -licudata -lglog
+LIBS=-lmyanmartools -licuuc -licuio -licui18n -licudata
 STD=--std=c++11
 CFLAGS=
 OBJ=demo.o

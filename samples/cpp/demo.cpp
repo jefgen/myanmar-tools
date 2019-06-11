@@ -15,11 +15,14 @@
 
 #include <iostream>
 #include <myanmartools.h>
+#include <unicode/utrans.h>
+#include <unicode/ustring.h>
 #include <unicode/errorcode.h>
 #include <unicode/translit.h>
 #include <unicode/unistr.h>
 #include <unicode/ustream.h>
-#include <glog/logging.h>
+#include <cassert>
+//#include <glog/logging.h>
 
 int main() {
     // Unicode string:
@@ -31,23 +34,45 @@ int main() {
     static const auto* const detector = new google_myanmar_tools::ZawgyiDetector();
     double score1 = detector->GetZawgyiProbability(input1);
     double score2 = detector->GetZawgyiProbability(input2);
-    CHECK_LT(score1, 0.001);
-    CHECK_GT(score2, 0.999);
+
+    assert(score1 < 0.001);
+    assert(score2 > 0.999);
+    //CHECK_LT(score1, 0.001);
+    //CHECK_GT(score2, 0.999);
     std::cout.precision(6);
     std::cout.setf(std::ios::fixed, std::ios::floatfield);
     std::cout << "Unicode Score: " << score1 << std::endl;
     std::cout << "Zawgyi Score: " << score2 << std::endl;
 
-    // Convert the second string to Unicode:
-    static const auto* const converter = [] {
-        icu::ErrorCode status;
-        auto* converter = Transliterator::createInstance(
-            "Zawgyi-my", UTRANS_FORWARD  , status);
-        CHECK(status.isSuccess()) << ": " << status.errorName();
-        return converter;
-    }();
-    icu::UnicodeString input2converted(input2);
-    converter->transliterate(input2converted); // in-place conversion
-    CHECK_EQ(icu::UnicodeString(input1), input2converted);
-    std::cout << "Converted Text: " << input2converted << std::endl;
+    UErrorCode status = U_ZERO_ERROR;
+    const char16_t* id = u"Zawgyi-my";
+    auto converter2 = utrans_openU(u"Zawgyi-my", -1, UTRANS_FORWARD, nullptr, -1, nullptr, &status);
+    if (U_FAILURE(status)) {
+        std::cout << "Failure: " << u_errorName(status);
+        return -1;
+    }
+
+    const char16_t* inputZawgyi = u"အျပည္ျပည္ဆိုင္ရာ လူ႔အခြင့္အေရး ေၾကညာစာတမ္း";
+    char16_t buf[256] = {0};
+    
+    u_strcpy(buf, inputZawgyi);
+    int32_t length = -1;
+    int32_t limit = u_strlen(inputZawgyi);
+
+    utrans_transUChars(converter2, buf, &length, 256, 0, &limit, &status);
+
+    if (U_FAILURE(status)) {
+        std::cout << "Failure: " << u_errorName(status);
+        return -1;
+    }
+
+    utrans_close(converter2);
+    
+    icu::UnicodeString output(buf);
+    if (icu::UnicodeString(input1) != output) {
+        std::cout << "Failed!!!" << std::endl;
+    } else {
+        std::cout << "Converted Text: " << output << std::endl;
+    }
+
 }
