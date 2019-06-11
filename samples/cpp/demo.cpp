@@ -15,14 +15,18 @@
 
 #include <cassert>
 #include <iostream>
+
+// Include the header from the myanmar-tools Zawgyi detector
 #include <myanmartools.h>
 
+// Include ICU headers
+// Note: On Windows 10 version 1709 (RS3) and above you can use the following
+//  #include <icu.h>
 #define U_SHOW_CPLUSPLUS_API 0
 #define U_DEFAULT_SHOW_DRAFT 0
 #define U_HIDE_DEPRECATED_API 1
 #define U_HIDE_OBSOLETE_API 1
 #define U_HIDE_INTERNAL_API 1
-
 #include <unicode/utrans.h>
 #include <unicode/ustring.h>
 #include <unicode/errorcode.h>
